@@ -1,0 +1,28 @@
+[package]
+name = "whisper_aoti"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[lib]
+name = "whisper_aoti"
+crate-type = ["cdylib"]
+
+[dependencies]
+tiktoken-rs = "0.5.9"
+rustc-hash = "1.1"
+anyhow = "1.0.86"
+base64 = "0.22.1"
+indexmap = "2.5.0"
+itertools = "0.13.0"
+libloading = "0.8"
+libc = "0.2"
+tch = {git = "https://github.com/zhxchen17/tch-rs.git"}
+torch-sys = {git = "https://github.com/zhxchen17/tch-rs.git"}
+pyo3-tch = {git = "https://github.com/zhxchen17/tch-rs.git"}
+
+[dependencies.pyo3]
+version = "0.21.2"
+features = ["extension-module", "anyhow"]
+
