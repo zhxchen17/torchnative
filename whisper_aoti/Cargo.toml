@@ -5,9 +5,9 @@ edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
-[lib]
-name = "whisper_aoti"
-crate-type = ["cdylib"]
+# [lib]
+# name = "whisper_aoti"
+# crate-type = ["cdylib"]
 
 [dependencies]
 tiktoken-rs = "0.5.9"
@@ -20,9 +20,9 @@ libloading = "0.8"
 libc = "0.2"
 tch = {git = "https://github.com/zhxchen17/tch-rs.git"}
 torch-sys = {git = "https://github.com/zhxchen17/tch-rs.git"}
-pyo3-tch = {git = "https://github.com/zhxchen17/tch-rs.git"}
+tempfile = "3"
+# pyo3-tch = {git = "https://github.com/zhxchen17/tch-rs.git"}
 
-[dependencies.pyo3]
-version = "0.21.2"
-features = ["extension-module", "anyhow"]
-
+# [dependencies.pyo3]
+# version = "0.21.2"
+# features = ["extension-module", "anyhow"]

@@ -1,5 +1,5 @@
 __pycache__/
-generated/
+build/
 target/
 Cargo.lock
-manifest_*.json
+**/generated.rs

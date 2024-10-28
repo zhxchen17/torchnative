@@ -1674,7 +1674,8 @@ struct AOTIModel {
     container: ContainerHandle,
 }
 
-unsafe impl Send for AOTIModel {}
+unsafe impl Send for AOTIModel {} // TODO
+unsafe impl Sync for AOTIModel {} // TODO
 
 impl AOTIModel {
     unsafe fn new(path: String, device: String) -> anyhow::Result<Self> {
@@ -1749,15 +1750,14 @@ impl AOTIModel {
             let mut output_handles = vec![std::ptr::null_mut(); num_outputs];
             let _no_grad_guard = tch::no_grad_guard();
             let json_path = self.path.replace(".so", ".json"); // TODO
-            println!("11111111111111111");
             let proxy_executor = if std::path::Path::new(json_path.as_str()).exists() {
                 assert_eq!(self.device, "cpu".to_string());
                 let tmp = std::ffi::CString::new(&*json_path)?;
-                torch_sys::torch_aoti_make_proxy_executor(tmp.as_ptr(), true) as ProxyExecutorHandle // TODO is_cpu
+                torch_sys::torch_aoti_make_proxy_executor(tmp.as_ptr(), true) as ProxyExecutorHandle
+            // TODO is_cpu
             } else {
                 std::ptr::null_mut()
             };
-            println!("222222222222222222222222");
             // TODO proxy executor, cuda stream.
             run(
                 self.container,
@@ -1768,15 +1768,15 @@ impl AOTIModel {
                 std::ptr::null_mut(),
                 proxy_executor,
             ); // TODO error check
-            println!("333333333333333333333333333333");
             if proxy_executor != std::ptr::null_mut() {
-                torch_sys::torch_aoti_delete_proxy_executor(proxy_executor as *mut libc::c_void); // TODO caching
+                torch_sys::torch_aoti_delete_proxy_executor(proxy_executor as *mut libc::c_void);
+                // TODO caching
             }
-            println!("444444444444444444444444");
-            Ok(output_handles
+            let ret = Ok(output_handles
                 .into_iter()
                 .map(|x| unsafe { to_py_tensor(x) })
-                .collect())
+                .collect());
+            ret
         }
     }
 
@@ -1820,10 +1820,56 @@ fn make_decoding_task(py_dims: &Bound<'_, PyAny>) -> anyhow::Result<DecodingTask
     DecodingTask::new(dims, DecodingOptions::default())
 }
 
+static MEL_MODEL: LazyLock<AOTIModel> =
+    LazyLock::new(|| aot_load("./generated/mel.so".to_string(), "cpu".to_string()).unwrap());
+
 #[pyfunction]
-fn log_mel_spectrogram(audio: PyTensor) -> PyTensor {
-    let mel = aot_load("./generated/mel.so".to_string(), "cpu".to_string()).unwrap();
-    PyTensor(mel.call(vec![audio]).unwrap()[0].shallow_clone()) // FIXME
+pub fn log_mel_spectrogram(audio: PyTensor) -> PyTensor {
+    let ret = PyTensor(MEL_MODEL.call(vec![audio]).unwrap()[0].shallow_clone()); // FIXME
+    ret
+}
+
+const SAMPLE_RATE: i32 = 16000;
+const N_SAMPLES: i32 = CHUNK_LENGTH * SAMPLE_RATE;
+
+// TODO link ffmpeg directly?
+#[pyfunction]
+pub fn load_audio(file: String) -> anyhow::Result<PyTensor> {
+    let output = std::process::Command::new("ffmpeg")
+        .args([
+            "-nostdin",
+            "-threads",
+            "0",
+            "-i",
+            file.as_str(),
+            "-f",
+            "s16le",
+            "-ac",
+            "1",
+            "-acodec",
+            "pcm_s16le",
+            "-ar",
+            SAMPLE_RATE.to_string().as_str(),
+            "-",
+        ])
+        .output()
+        .expect("failed to execute ffmpeg");
+    let array = unsafe {
+        Tensor::from_blob(
+            output.stdout.as_ptr(),
+            &[(output.stdout.len() / 2) as i64],
+            &[],
+            tch::Kind::Int16,
+            tch::Device::Cpu,
+        )
+    }
+    .to_dtype(tch::Kind::Float, false, true)
+    .g_div_scalar(32768.0);
+
+    assert_eq!(array.dim(), 1);
+    assert!(array.size1()? < N_SAMPLES as i64);
+    let array = array.pad([0, N_SAMPLES as i64 - array.size1()?], "constant", None);
+    Ok(PyTensor(array))
 }
 
 /// A Python module implemented in Rust. The name of this function must match
@@ -1851,6 +1897,8 @@ fn whisper_aoti(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(aot_load, m)?).unwrap();
     m.add_function(wrap_pyfunction!(make_decoding_task, m)?)
         .unwrap();
-    m.add_function(wrap_pyfunction!(log_mel_spectrogram, m)?).unwrap();
+    m.add_function(wrap_pyfunction!(log_mel_spectrogram, m)?)
+        .unwrap();
+    m.add_function(wrap_pyfunction!(load_audio, m)?).unwrap();
     Ok(())
 }
