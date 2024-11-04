@@ -1,4 +1,7 @@
 # Export & Compile Whisper
+
+![demo](./demo.gif)
+
 ## Prerequisites
 
 1. Have a local PyTorch installed.
