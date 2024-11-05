@@ -6,11 +6,11 @@ import torch
 import torch.utils._pytree as pytree
 import whisper
 
-DEVICE = "cpu"  # TODO make this an arg.
+DEVICE = "cuda"  # TODO make this an arg.
 
 model = whisper.load_model("base").to(DEVICE)
 
-audio = whisper.load_audio("./nh.m4a")
+audio = whisper.load_audio("./tests_jfk.flac")
 audio = torch.from_numpy(audio)
 audio = whisper.pad_or_trim(audio)
 
@@ -54,8 +54,8 @@ class EncoderCompiled(torch.nn.Module):
         return self.encoder(x)
 
 
-mel = whisper.log_mel_spectrogram(audio).to(DEVICE)
 t0 = time.time()
+mel = whisper.log_mel_spectrogram(audio).to(DEVICE)
 result = whisper_decode(model, mel)
 t1 = time.time()
 print("eager:", t1 - t0, result.text)
@@ -69,6 +69,7 @@ model.decoder = DecoderCompiled(prefill, decoder, detect)
 model.encoder = EncoderCompiled(encoder)
 
 t0 = time.time()
+mel = whisper.log_mel_spectrogram(audio).to(DEVICE)
 result = whisper_decode(model, mel)
 t1 = time.time()
 

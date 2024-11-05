@@ -1474,11 +1474,13 @@ fn main() {
     let args: Vec<String> = std::env::args().collect();
     assert_eq!(args.len(), 2);
     let model_package = generated::get_models();
-    let mut task = make_decoding_task(&model_package).unwrap();
     let audio = load_audio(&args[1]).unwrap();
+    let before = std::time::Instant::now();
+    let mut task = make_decoding_task(&model_package).unwrap();
     let mel = log_mel_spectrogram(&model_package, audio);
     assert_eq!(mel.dim(), 2);
     let res = task.run(mel.unsqueeze(0)).unwrap();
     println!("{}", res[0].text);
     model_package.close().unwrap();
+    println!("Elapsed time: {:.2?}", before.elapsed());
 }
