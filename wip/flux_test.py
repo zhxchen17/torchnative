@@ -2,18 +2,21 @@
 import sys
 import unittest.mock
 
-import torch
+import flux.cli
 
 import flux.util
-import flux.cli
+
+import torch
 
 assert len(sys.argv) == 3
 fmodel_path, ae_decoder_path = sys.argv[1:]
 
+
 def custom_load_ae_compiled(*args, **kwargs):
     ae = flux.util.load_ae(*args, **kwargs)
 
-    ae_decoder = torch._export.aot_load(ae_decoder_path, 'cuda')
+    ae_decoder = torch._export.aot_load(ae_decoder_path, "cuda")
+
     class DecoderCompiled(torch.nn.Module):
         def __init__(self):
             super().__init__()
@@ -28,8 +31,9 @@ def custom_load_ae_compiled(*args, **kwargs):
     ae.decoder = DecoderCompiled()
     return ae
 
+
 def custom_load_flow_model_compiled(*args, **kwargs):
-    fmodel = torch._export.aot_load(fmodel_path, 'cuda')
+    fmodel = torch._export.aot_load(fmodel_path, "cuda")
 
     class FluxCompiled(torch.nn.Module):
         def __init__(self):
@@ -46,5 +50,7 @@ def custom_load_flow_model_compiled(*args, **kwargs):
 
 
 print("testing compiled models...")
-with unittest.mock.patch("flux.cli.load_ae", custom_load_ae_compiled), unittest.mock.patch("flux.cli.load_flow_model", custom_load_flow_model_compiled):
-    flux.cli.main(height=256, width=256, offload=True)
+with unittest.mock.patch(
+    "flux.cli.load_ae", custom_load_ae_compiled
+), unittest.mock.patch("flux.cli.load_flow_model", custom_load_flow_model_compiled):
+    flux.cli.main(height=1024, width=1024, offload=False)
